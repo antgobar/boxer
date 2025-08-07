@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <title>WebSocket Image Stream with Bounding Box</title>
+  <style>
+    video,
+    canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+
+    canvas#canvas {
+      display: none;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <video id="video" autoplay playsinline width="640" height="480"></video>
+    <canvas id="canvas" width="640" height="480"></canvas>
+    <canvas id="overlay" width="640" height="480"></canvas>
+  </div>
+
+  <script>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas'); // offscreen for capture
+    const ctx = canvas.getContext('2d');
+
+    const overlayCanvas = document.getElementById('overlay');
+    const overlayCtx = overlayCanvas.getContext('2d');
+
+    const ws = new WebSocket('ws://localhost:8080/ws');
+    ws.binaryType = 'arraybuffer';
+
+    // Start webcam
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(stream => {
+        video.srcObject = stream;
+        setInterval(captureAndSend, 200); // Send every 200ms
+      })
+      .catch(err => {
+        console.error("Webcam error:", err);
+      });
+
+    // Capture and send frame
+    function captureAndSend() {
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob(blob => {
+        if (blob && ws.readyState === WebSocket.OPEN) {
+          blob.arrayBuffer().then(buffer => {
+            ws.send(buffer);
+          });
+        }
+      }, 'image/jpeg', 0.7);
+    }
+
+    // Receive boxes and draw
+    ws.onmessage = function (event) {
+      overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+
+      let boxes;
+      try {
+        boxes = JSON.parse(event.data);
+      } catch (err) {
+        console.error("Failed to parse JSON:", err);
+        return;
+      }
+
+      boxes.forEach(box => {
+        drawBox(box);
+      });
+    };
+
+    function drawBox(box) {
+      overlayCtx.strokeStyle = 'red';
+      overlayCtx.lineWidth = 2;
+      overlayCtx.strokeRect(
+        box.x1,
+        box.y1,
+        box.x2 - box.x1,
+        box.y2 - box.y1
+      );
+
+      overlayCtx.fillStyle = 'red';
+      overlayCtx.font = '12px sans-serif';
+      const labelText = `${box.label} (${(box.score * 100).toFixed(1)}%)`;
+      overlayCtx.fillText(labelText, box.x1 + 2, box.y1 - 5);
+    }
+  </script>
+</body>
+
+</html>

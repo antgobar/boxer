@@ -1,0 +1,36 @@
+syntax = "proto3";
+package model;
+
+option go_package = "internal/genproto/prediction";
+
+// Model service for performing object detection inference.
+service Model {
+  // Performs inference on the provided payload and returns a list of object detection box bounds.
+  rpc Predict (PredictRequest) returns (PredictResponseList) {
+    // errors: invalid image bytes, model not loaded
+  }
+}
+
+// Request for performing inference.
+message PredictRequest {
+  // Image bytes to perform inference on.
+  bytes payload = 1;
+  // Source of the image
+  string source = 2;
+
+}
+
+// Response for performing inference containing detected object bounds, scores, and labels.
+message PredictResponse {
+  float x1 = 1;  // top-left X
+  float y1 = 2;  // top-left Y
+  float x2 = 3;  // bottom-right X
+  float y2 = 4;  // bottom-right Y
+  float score = 5;  // confidence score
+  string label = 6;  // class label
+}
+
+// Response containing a list of detected objects.
+message PredictResponseList {
+  repeated PredictResponse items = 1; // list of detections
+}

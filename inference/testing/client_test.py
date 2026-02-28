@@ -2,10 +2,46 @@ import time
 
 import grpc
 from PIL import Image
+import os
+from io import BytesIO
+from typing import TypedDict
+
+import matplotlib.patches as patches
+import matplotlib.pyplot as plt
+from PIL import Image
+from pydantic import BaseModel
+from transformers import DetrConfig, DetrForObjectDetection, DetrImageProcessor
 
 import gen.prediction_pb2 as request_pb2
 import gen.prediction_pb2_grpc as prediction_pb2_grpc
-from infer import BoundingBox, plot_inference_results
+
+
+def plot_inference_results(image: Image.Image, results: list[BoundingBox]) -> None:
+    fig, ax = plt.subplots(1)
+    ax.imshow(image)
+
+    for box in results:
+        xmin, ymin, xmax, ymax = box.xmin, box.ymin, box.xmax, box.ymax
+        width, height = xmax - xmin, ymax - ymin
+        ax.add_patch(
+            patches.Rectangle(
+                (xmin, ymin),
+                width,
+                height,
+                linewidth=2,
+                edgecolor="red",
+                facecolor="none",
+            )
+        )
+        ax.text(
+            xmin,
+            ymin,
+            f"{box.label}: {box.score}",
+            bbox=dict(facecolor="yellow", alpha=0.5),
+        )
+
+    plt.axis("off")
+    plt.show()
 
 
 def run():

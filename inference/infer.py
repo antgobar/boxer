@@ -1,21 +1,18 @@
 import os
 from io import BytesIO
+from typing import TypedDict
 
-import matplotlib.patches as patches
-import matplotlib.pyplot as plt
 import torch
 from PIL import Image
 from pydantic import BaseModel
 from transformers import DetrConfig, DetrForObjectDetection, DetrImageProcessor
+from models import BoundingBox
 
 
-class BoundingBox(BaseModel):
-    score: float
-    label: str
-    xmin: float
-    ymin: float
-    xmax: float
-    ymax: float
+class InferenceResult(TypedDict):
+    scores: torch.Tensor
+    labels: torch.Tensor
+    boxes: torch.Tensor
 
 
 class Inference:
@@ -41,7 +38,7 @@ class Inference:
         inputs = self.processor(images=image, return_tensors="pt").to(self.device)
         outputs = self.model(**inputs)
         target_sizes = torch.tensor([image.size[::-1]]).to(self.device)
-        results = self.processor.post_process_object_detection(
+        results: InferenceResult = self.processor.post_process_object_detection(
             outputs, target_sizes=target_sizes, threshold=0.9
         )[0]
 
@@ -64,31 +61,3 @@ class Inference:
             )
 
         return bounding_boxes
-
-
-def plot_inference_results(image: Image.Image, results: list[BoundingBox]) -> None:
-    fig, ax = plt.subplots(1)
-    ax.imshow(image)
-
-    for box in results:
-        xmin, ymin, xmax, ymax = box.xmin, box.ymin, box.xmax, box.ymax
-        width, height = xmax - xmin, ymax - ymin
-        ax.add_patch(
-            patches.Rectangle(
-                (xmin, ymin),
-                width,
-                height,
-                linewidth=2,
-                edgecolor="red",
-                facecolor="none",
-            )
-        )
-        ax.text(
-            xmin,
-            ymin,
-            f"{box.label}: {box.score}",
-            bbox=dict(facecolor="yellow", alpha=0.5),
-        )
-
-    plt.axis("off")
-    plt.show()

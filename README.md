@@ -105,3 +105,4 @@ cd api
 
 - Addresses are hardcoded: the inference server listens on `:50051`, the API server on `:8080`, and the API connects to the predictor at `localhost:50051` (`api/cmd/main.go`).
 - Inference uses CUDA if a GPU is available, otherwise it falls back to CPU (`inference/infer.py`).
+
